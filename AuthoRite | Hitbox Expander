@@ -1,0 +1,234 @@
+--==================================================--
+-- AuthoRite | Hitbox Expander | by zev himself(me) --
+--==================================================--
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LP = Players.LocalPlayer
+local ActiveSlider = nil
+
+local Theme = {
+    Panel = Color3.fromRGB(18,18,24),
+    Inner = Color3.fromRGB(12,12,16),
+    SliderBg = Color3.fromRGB(16,16,20),
+    Purple = Color3.fromRGB(165,90,255),
+    Glow = Color3.fromRGB(190,120,255),
+    Text = Color3.fromRGB(230,230,230)
+}
+
+local Enabled = false
+local HitboxSize = 6
+local HitboxTransparency = 0.5
+local OriginalParts = {}
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "AuthoRite"
+Gui.ResetOnSpawn = false
+pcall(function()
+    Gui.Parent = game:GetService("CoreGui")
+end)
+
+local Main = Instance.new("Frame", Gui)
+Main.Size = UDim2.fromOffset(200, 150)
+Main.Position = UDim2.fromScale(0.5, 0.5)
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.BackgroundColor3 = Theme.Panel
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+
+local TitleBar = Instance.new("Frame", Main)
+TitleBar.Size = UDim2.new(1, 0, 0, 28)
+TitleBar.BackgroundTransparency = 1
+
+local Title = Instance.new("TextLabel", TitleBar)
+Title.Size = UDim2.fromScale(1, 1)
+Title.BackgroundTransparency = 1
+Title.Text = "AuthoRite"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.TextColor3 = Theme.Purple
+
+do
+    local dragging, startPos, startInput
+    TitleBar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startInput = i.Position
+            startPos = Main.Position
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local delta = i.Position - startInput
+            Main.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+local Content = Instance.new("Frame", Main)
+Content.Position = UDim2.fromOffset(10, 32)
+Content.Size = UDim2.new(1, -20, 1, -54)
+Content.BackgroundTransparency = 1
+
+local Layout = Instance.new("UIListLayout", Content)
+Layout.Padding = UDim.new(0, 8)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local Toggle = Instance.new("TextButton", Content)
+Toggle.Size = UDim2.fromOffset(180, 24)
+Toggle.Text = "Enable"
+Toggle.Font = Enum.Font.GothamMedium
+Toggle.TextSize = 13
+Toggle.TextColor3 = Theme.Text
+Toggle.BackgroundColor3 = Theme.Inner
+Instance.new("UICorner", Toggle).CornerRadius = UDim.new(0, 8)
+
+Toggle.MouseButton1Click:Connect(function()
+    Enabled = not Enabled
+    Toggle.Text = Enabled and "Disable" or "Enable"
+    TweenService:Create(Toggle, TweenInfo.new(0.2), {
+        BackgroundColor3 = Enabled and Theme.Purple or Theme.Inner
+    }):Play()
+    if not Enabled then
+        for p, data in pairs(OriginalParts) do
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = p.Character.HumanoidRootPart
+                hrp.Size = data.Size
+                hrp.Transparency = data.Transparency
+            end
+        end
+        OriginalParts = {}
+    end
+end)
+
+local function CreateSlider(min, max, default, callback)
+    local Frame = Instance.new("Frame", Content)
+    Frame.Size = UDim2.fromOffset(180, 24)
+    Frame.BackgroundColor3 = Theme.SliderBg
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+
+    local InputCircle = Instance.new("Frame", Frame)
+    InputCircle.Size = UDim2.fromOffset(26, 18)
+    InputCircle.Position = UDim2.new(0, 4, 0.5, -9)
+    InputCircle.BackgroundColor3 = Theme.Panel
+    Instance.new("UICorner", InputCircle).CornerRadius = UDim.new(1, 0)
+
+    local Box = Instance.new("TextBox", InputCircle)
+    Box.Size = UDim2.fromScale(1, 1)
+    Box.BackgroundTransparency = 1
+    Box.Font = Enum.Font.GothamMedium
+    Box.TextSize = 11
+    Box.TextColor3 = Theme.Text
+    Box.ClearTextOnFocus = false
+
+    local Bar = Instance.new("Frame", Frame)
+    Bar.Size = UDim2.fromOffset(130, 4)
+    Bar.Position = UDim2.new(0, 34, 0.5, -2)
+    Bar.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+
+    local Fill = Instance.new("Frame", Bar)
+    Fill.BackgroundColor3 = Theme.Purple
+    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+
+    local Knob = Instance.new("Frame", Bar)
+    Knob.Size = UDim2.fromOffset(12, 12)
+    Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    Knob.BackgroundColor3 = Theme.Glow
+    Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+
+    local currentValue = default
+
+    local function SetValue(v)
+        v = math.clamp(v, min, max)
+        currentValue = v
+        local pct = (v - min) / (max - min)
+        Fill.Size = UDim2.fromScale(pct, 1)
+        Knob.Position = UDim2.new(pct, 0, 0.5, 0)
+        Box.Text = string.format("%.2f", v)
+        callback(v)
+    end
+
+    SetValue(default)
+
+    local dragging = false
+
+    Bar.InputBegan:Connect(function(i)
+        if ActiveSlider == nil and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
+            ActiveSlider = Bar
+            dragging = true
+        end
+    end)
+
+    UIS.InputEnded:Connect(function()
+        dragging = false
+        ActiveSlider = nil
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if dragging and ActiveSlider == Bar then
+            local pct = math.clamp((i.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+            SetValue(min + pct * (max - min))
+        end
+    end)
+
+    Box.FocusLost:Connect(function()
+        local num = tonumber(Box.Text)
+        SetValue(num or currentValue)
+    end)
+end
+
+CreateSlider(3, 200, HitboxSize, function(v)
+    HitboxSize = math.floor(v)
+end)
+
+CreateSlider(0, 1, HitboxTransparency, function(v)
+    HitboxTransparency = v
+end)
+
+RunService.Heartbeat:Connect(function()
+    if not Enabled then return end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP and plr.Character then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                if not OriginalParts[plr] then
+                    OriginalParts[plr] = {
+                        Size = hrp.Size,
+                        Transparency = hrp.Transparency
+                    }
+                end
+                hrp.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+                hrp.Transparency = HitboxTransparency
+                hrp.Material = Enum.Material.Neon
+                hrp.Color = Theme.Purple
+                hrp.CanCollide = false
+            end
+        end
+    end
+end)
+
+local Credit = Instance.new("TextLabel", Main)
+Credit.Size = UDim2.new(1, -16, 0, 12)
+Credit.Position = UDim2.new(0, 8, 1, -18)
+Credit.BackgroundTransparency = 1
+Credit.Text = "Made by Zevlte"
+Credit.Font = Enum.Font.GothamItalic
+Credit.TextSize = 9
+Credit.TextColor3 = Color3.fromRGB(255,255,255)
+Credit.TextXAlignment = Enum.TextXAlignment.Center
+Credit.TextYAlignment = Enum.TextYAlignment.Center
+
+print("AuthoRite | Hitbox Expander | Discord coming soon...")
